@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -34,6 +34,8 @@ namespace WW
         private bool isPaused = false;
         private int shirtHealth = 3;
         private Rectangle ShirtHealthBar;
+        private bool isShaking = false;//2 new
+        private readonly DispatcherTimer shakeTimer = new();
 
         private double scaleX;
         private double scaleY;
@@ -59,27 +61,27 @@ namespace WW
             scaleY = ActualHeight / 600;
         }
 
+
         private void LoadImages()
         {
-            BackgroundImage.Source = new BitmapImage(new Uri(@"pack://application:,,,/assets\background.jpg", UriKind.Absolute));
-            Boss.Source = new BitmapImage(new Uri(@"pack://application:,,,/assets\Monster1.png.png", UriKind.Absolute));
-            Player.Source = new BitmapImage(new Uri(@"pack://application:,,,/assets\character_blond.png", UriKind.Absolute));
-            Platform1.Source = new BitmapImage(new Uri(@"pack://application:,,,/assets\platform1.png", UriKind.Absolute));
-            Platform2.Source = new BitmapImage(new Uri(@"pack://application:,,,/assets\platform1.png", UriKind.Absolute));
-            Shirt.Source = new BitmapImage(new Uri(@"pack://application:,,,/assets\shirt.png", UriKind.Absolute));
+            BackgroundImage.Source = new BitmapImage(new Uri(@"C:\Users\irber\source\repos\WW\WW\assets\background.jpg", UriKind.Absolute));
+            Boss.Source = new BitmapImage(new Uri(@"C:\Users\irber\source\repos\WW\WW\assets\Monster1.png.png", UriKind.Absolute));
+            Player.Source = new BitmapImage(new Uri(@"C:\Users\irber\source\repos\WW\WW\assets\character_blond.png", UriKind.Absolute));
+            Platform1.Source = new BitmapImage(new Uri(@"C:\Users\irber\source\repos\WW\WW\assets\platform1.png", UriKind.Absolute));
+            Platform2.Source = new BitmapImage(new Uri(@"C:\Users\irber\source\repos\WW\WW\assets\platform1.png", UriKind.Absolute));
+            Shirt.Source = new BitmapImage(new Uri(@"C:\Users\irber\source\repos\WW\WW\assets\shirt.png", UriKind.Absolute));
 
             Player.Width = 180 * scaleX;
             Player.Height = 180 * scaleY;
             Boss.Width = 425 * scaleX;
             Boss.Height = 425 * scaleY;
-            Platform1.Width = 125 * scaleX; // Increased width
+            Platform1.Width = 125 * scaleX;
             Platform1.Height = 30 * scaleY;
-            Platform2.Width = 125 * scaleX; // Increased width
+            Platform2.Width = 125 * scaleX;
             Platform2.Height = 30 * scaleY;
             Shirt.Width = 40 * scaleX;
             Shirt.Height = 40 * scaleY;
 
-            // Adjust start button size (50% bigger)
             StartButton.Width = 425 * scaleX;
             StartButton.Height = 350 * scaleY;
         }
@@ -102,10 +104,8 @@ namespace WW
             ShirtText.Text = "Raak het shirt drie keer om te verzamelen!";
             ShirtText.FontWeight = FontWeights.Bold;
 
-            // Add health bar for shirt
             ShirtHealthBar = new Rectangle
             {
-                //--------------------------------------------------
                 Width = 15 * shirtHealth,
                 Height = 5 * scaleY,
                 Fill = Brushes.Red
@@ -114,7 +114,6 @@ namespace WW
             Canvas.SetBottom(ShirtHealthBar, Canvas.GetBottom(Shirt) - 10 * scaleY);
             GameCanvas.Children.Add(ShirtHealthBar);
 
-            // Adjust start button position
             Canvas.SetBottom(StartButton, 100 * scaleY);
         }
 
@@ -159,6 +158,39 @@ namespace WW
             GameCanvas.Focus();
         }
 
+        private void StartScreenShake()//new method
+        {
+            if (isShaking) return;
+
+            isShaking = true;
+            var originalLeft = Canvas.GetLeft(GameCanvas);
+            var originalTop = Canvas.GetTop(GameCanvas);
+
+            shakeTimer.Interval = TimeSpan.FromMilliseconds(50);
+            int shakeCount = 0;
+
+            shakeTimer.Tick += (s, e) =>
+            {
+                shakeCount++;
+                if (shakeCount > 4)  // Stop after 4 shakes
+                {
+                    shakeTimer.Stop();
+                    Canvas.SetLeft(GameCanvas, originalLeft);
+                    Canvas.SetTop(GameCanvas, originalTop);
+                    isShaking = false;
+                    return;
+                }
+
+                // Simple left-right shake
+                if (shakeCount % 2 == 0)
+                    Canvas.SetLeft(GameCanvas, originalLeft - 5);
+                else
+                    Canvas.SetLeft(GameCanvas, originalLeft + 5);
+            };
+
+            shakeTimer.Start();
+        }
+
         private void GameLoop(object sender, EventArgs e)
         {
             if (isPaused) return;
@@ -183,7 +215,7 @@ namespace WW
             if (Keyboard.IsKeyDown(Key.W) && jumpCount < 2)
             {
                 isJumping = true;
-                jumpVelocity = 30 * scaleY; // Jump height
+                jumpVelocity = 30 * scaleY;
                 jumpCount++;
             }
 
@@ -226,9 +258,6 @@ namespace WW
 
             Canvas.SetRight(BossHealthBar, Canvas.GetRight(Boss));
             Canvas.SetBottom(BossHealthBar, Canvas.GetBottom(Boss) + Boss.Height + 10 * scaleY);
-
-            //  ShirtHealthBar.Width = Math.Max(0, shirtHealth * (50 * scaleX / 3));
-
 
             if (Math.Abs(currentX - bossTargetX) < 1)
             {
@@ -287,11 +316,9 @@ namespace WW
                 UpdateShirtHealthBar();
                 if (shirtHealth <= 0)
                 {
-                    //Remove Collision Shirt. ... = ... . Collapsed;
                     Shirt.Visibility = Visibility.Collapsed;
                     ShirtText.Visibility = Visibility.Collapsed;
                     ShirtHealthBar.Visibility = Visibility.Collapsed;
-
                 }
             });
 
@@ -302,7 +329,7 @@ namespace WW
         {
             for (int i = projectiles.Count - 1; i >= 0; i--)
             {
-                if (CheckIntersection(projectiles[i], target, target == Boss ? 0.25 : (target == Player ? 0.25 : 1))) // Boss and Player hitbox decreased by half
+                if (CheckIntersection(projectiles[i], target, target == Boss ? 0.25 : (target == Player ? 0.25 : 1)))
                 {
                     onHit();
                     GameCanvas.Children.Remove(projectiles[i]);
@@ -373,7 +400,7 @@ namespace WW
                 return;
             }
 
-            FrameworkElement projectile = CreateProjectile(@"pack://application:,,,/assets\attack1.png");
+            FrameworkElement projectile = CreateProjectile(@"C:\Users\irber\source\repos\WW\WW\assets\attack1.png");
             Point playerCenter = new Point(Canvas.GetLeft(Player) + Player.Width / 2, GameCanvas.ActualHeight - Canvas.GetBottom(Player) - Player.Height / 2);
             Vector direction = Point.Subtract(mousePosition, playerCenter);
             direction.Normalize();
@@ -385,6 +412,8 @@ namespace WW
 
             GameCanvas.Children.Add(projectile);
             playerProjectiles.Add(projectile);
+            //-----
+
 
             lastPlayerShotTime = DateTime.Now;
         }
@@ -396,7 +425,7 @@ namespace WW
                 return;
             }
 
-            FrameworkElement projectile = CreateProjectile(@"pack://application:,,,/assets\projectile_1.png");
+            FrameworkElement projectile = CreateProjectile(@"C:\Users\irber\source\repos\WW\WW\assets\projectile_1.png");
             projectile.Width = 180 * scaleX;
             projectile.Height = 180 * scaleY;
 
@@ -423,7 +452,7 @@ namespace WW
                 return;
             }
 
-            FrameworkElement projectile = CreateProjectile(@"pack://application:,,,/assets\bigProjectile_1.png");
+            FrameworkElement projectile = CreateProjectile(@"C:\Users\irber\source\repos\WW\WW\assets\bigProjectile_1.png");
             projectile.Width = 90 * scaleX;
             projectile.Height = 90 * scaleY;
 
